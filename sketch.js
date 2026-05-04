@@ -95,6 +95,26 @@ function draw() {
       line(pt1.x, pt1.y, pt2.x, pt2.y);
     }
 
+    // 左眼外圈 (與右眼對稱)
+    let leftEyeOuter = [359, 467, 260, 259, 257, 258, 286, 414, 463, 341, 256, 252, 253, 254, 339, 255];
+    stroke(0, 255, 0); // 綠色
+    strokeWeight(1);
+    for (let i = 0; i < leftEyeOuter.length; i++) {
+      let pt1 = face.keypoints[leftEyeOuter[i]];
+      let pt2 = face.keypoints[leftEyeOuter[(i + 1) % leftEyeOuter.length]];
+      line(pt1.x, pt1.y, pt2.x, pt2.y);
+    }
+
+    // 左眼內圈 (與右眼對稱)
+    let leftEyeInner = [263, 466, 388, 387, 386, 385, 384, 398, 362, 382, 381, 380, 374, 373, 390, 249];
+    stroke(0, 0, 255); // 藍色
+    strokeWeight(1);
+    for (let i = 0; i < leftEyeInner.length; i++) {
+      let pt1 = face.keypoints[leftEyeInner[i]];
+      let pt2 = face.keypoints[leftEyeInner[(i + 1) % leftEyeInner.length]];
+      line(pt1.x, pt1.y, pt2.x, pt2.y);
+    }
+
     // --- 噴火特效邏輯 ---
     // 取得上下嘴唇內側的特徵點 (13: 上嘴唇內側, 14: 下嘴唇內側)
     let upperLip = face.keypoints[13];
