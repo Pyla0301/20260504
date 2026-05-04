@@ -6,6 +6,7 @@ let video;
 let faceMesh;
 let faces = [];
 let fireParticles = []; // 儲存火焰粒子的陣列
+let fishes = []; // 儲存背景小魚的陣列
 
 function mousePressed() {
   // Log detected face data tothe console
@@ -23,6 +24,11 @@ function setup() {
 
   // Initialize FaceMesh model with a callback instead of preload
   faceMesh = ml5.faceMesh({ maxFaces: 1, flipped: true }, modelReady);
+
+  // 隨機產生 30 隻背景小魚
+  for (let i = 0; i < 30; i++) {
+    fishes.push(new Fish());
+  }
 }
 
 function modelReady() {
@@ -32,22 +38,44 @@ function modelReady() {
 }
 
 function draw() {
-  background('#84a59d');
+  background('#4361ee'); // 將背景改為大海的藍色
 
-  let imgW = windowWidth * 0.5;
-  let imgH = windowHeight * 0.5;
-  let x = (windowWidth - imgW) / 2;
-  let y = (windowHeight - imgH) / 2;
-
-  image(video, x, y, imgW, imgH);
+  // 更新並繪製所有背景小魚
+  for (let fish of fishes) {
+    fish.update();
+    fish.show();
+  }
 
   // Ensure at least one face is detected
   if (faces.length > 0 && video.width > 0) {
     let face = faces[0];
 
+    // 為了避免手機橫直向轉向時比例失真導致特徵點偏移，改用等比例縮放
+    let scaleFactor = min((windowWidth * 0.5) / video.width, (windowHeight * 0.5) / video.height);
+    let imgW = video.width * scaleFactor;
+    let imgH = video.height * scaleFactor;
+    let x = (windowWidth - imgW) / 2;
+    let y = (windowHeight - imgH) / 2;
+
+    // 臉部最外層輪廓 (Face Oval) 特徵點
+    let faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+
     push();
     translate(x, y);
-    scale(imgW / video.width, imgH / video.height);
+    scale(scaleFactor);
+
+    // --- 使用 clip() 遮罩，讓影像只顯示在臉部輪廓內 ---
+    push();
+    beginShape();
+    for (let i = 0; i < faceOutline.length; i++) {
+      let pt = face.keypoints[faceOutline[i]];
+      vertex(pt.x, pt.y);
+    }
+    endShape(CLOSE);
+    drawingContext.clip(); 
+    // 將攝影機畫面繪製在被裁切的遮罩範圍內
+    image(video, 0, 0, video.width, video.height);
+    pop();
 
     // Draw keypoints on the detected face
     for (let i = 0; i < face.keypoints.length; i++) {
@@ -115,6 +143,15 @@ function draw() {
       line(pt1.x, pt1.y, pt2.x, pt2.y);
     }
 
+    // 臉部最外層輪廓 (Face Oval)
+    stroke(255, 255, 255); // 使用白色線條
+    strokeWeight(1);
+    for (let i = 0; i < faceOutline.length; i++) {
+      let pt1 = face.keypoints[faceOutline[i]];
+      let pt2 = face.keypoints[faceOutline[(i + 1) % faceOutline.length]];
+      line(pt1.x, pt1.y, pt2.x, pt2.y);
+    }
+
     // --- 噴火特效邏輯 ---
     // 取得上下嘴唇內側的特徵點 (13: 上嘴唇內側, 14: 下嘴唇內側)
     let upperLip = face.keypoints[13];
@@ -148,6 +185,11 @@ function draw() {
   }
 }
 
+// 當視窗大小改變（例如手機旋轉橫向/直向）時，自動重設畫布大小
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
 // --- 火焰粒子類別 ---
 class FireParticle {
   constructor(x, y) {
@@ -173,5 +215,40 @@ class FireParticle {
     noStroke();
     fill(this.r, this.g, this.b, this.life);
     circle(this.x, this.y, this.size);
+  }
+}
+
+// --- 背景小魚類別 ---
+class Fish {
+  constructor() {
+    this.x = random(width);
+    this.y = random(height);
+    this.size = random(15, 40); // 魚的大小
+    this.vx = random(1, 3) * (random() > 0.5 ? 1 : -1); // 隨機向左或向右游
+    this.vy = random(-0.5, 0.5); // 微微的上下起伏
+    // 隨機產生一些熱帶魚的顏色
+    this.color = color(random(100, 255), random(100, 255), random(150, 255));
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // 當魚游出螢幕邊界時，讓牠從另一邊繞回來
+    if (this.x > width + this.size) this.x = -this.size;
+    if (this.x < -this.size) this.x = width + this.size;
+    if (this.y > height + this.size) this.y = -this.size;
+    if (this.y < -this.size) this.y = height + this.size;
+  }
+
+  show() {
+    push();
+    translate(this.x, this.y);
+    if (this.vx < 0) scale(-1, 1); // 如果往左游，就水平翻轉影像
+    noStroke();
+    fill(this.color);
+    ellipse(0, 0, this.size, this.size * 0.6); // 魚的身體
+    triangle(-this.size * 0.4, 0, -this.size * 0.8, -this.size * 0.3, -this.size * 0.8, this.size * 0.3); // 魚的尾巴
+    pop();
   }
 }
