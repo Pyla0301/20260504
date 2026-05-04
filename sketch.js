@@ -5,6 +5,7 @@
 let video;
 let faceMesh;
 let faces = [];
+let fireParticles = []; // 儲存火焰粒子的陣列
 
 function mousePressed() {
   // Log detected face data tothe console
@@ -93,6 +94,64 @@ function draw() {
       let pt2 = face.keypoints[rightEyeInner[(i + 1) % rightEyeInner.length]];
       line(pt1.x, pt1.y, pt2.x, pt2.y);
     }
+
+    // --- 噴火特效邏輯 ---
+    // 取得上下嘴唇內側的特徵點 (13: 上嘴唇內側, 14: 下嘴唇內側)
+    let upperLip = face.keypoints[13];
+    let lowerLip = face.keypoints[14];
+    
+    // 計算嘴巴張開的距離
+    let mouthDist = dist(upperLip.x, upperLip.y, lowerLip.x, lowerLip.y);
+
+    // 如果嘴巴張開超過一定距離 (這裡設定15)，就產生火焰粒子
+    if (mouthDist > 15) {
+      let mouthX = (upperLip.x + lowerLip.x) / 2;
+      let mouthY = (upperLip.y + lowerLip.y) / 2;
+      for (let i = 0; i < 5; i++) {
+        fireParticles.push(new FireParticle(mouthX, mouthY));
+      }
+    }
+
+    // 使用 ADD 混合模式，讓火焰重疊時有發光的效果
+    blendMode(ADD);
+    for (let i = fireParticles.length - 1; i >= 0; i--) {
+      fireParticles[i].update();
+      fireParticles[i].show();
+      // 當粒子生命週期結束時將其移除
+      if (fireParticles[i].life <= 0) {
+        fireParticles.splice(i, 1);
+      }
+    }
+    blendMode(BLEND); // 畫完火焰後恢復正常混合模式
+
     pop();
+  }
+}
+
+// --- 火焰粒子類別 ---
+class FireParticle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.vx = random(-3, 3);   // 橫向隨機飄散
+    this.vy = random(5, 12);   // 往下噴灑的速度
+    this.life = 255;           // 生命週期（控制透明度）
+    this.r = 255;              // 顏色 R
+    this.g = random(50, 150);  // 顏色 G (讓它呈現紅橘黃的火光)
+    this.b = 0;                // 顏色 B
+    this.size = random(15, 35);// 粒子大小
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life -= 10;           // 生命力衰減
+    this.size *= 0.95;         // 粒子隨時間縮小
+  }
+
+  show() {
+    noStroke();
+    fill(this.r, this.g, this.b, this.life);
+    circle(this.x, this.y, this.size);
   }
 }
